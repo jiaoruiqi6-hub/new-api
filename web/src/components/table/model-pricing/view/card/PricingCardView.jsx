@@ -53,6 +53,72 @@ const CARD_STYLES = {
   default: 'border-gray-200 hover:border-gray-300',
 };
 
+const hasConfiguredNumber = (value) =>
+  value !== undefined &&
+  value !== null &&
+  value !== '' &&
+  Number.isFinite(Number(value));
+
+const getMarketPriceRows = (record, priceData, t) => {
+  const missingText = t('未配置');
+  const unitSuffix =
+    priceData?.isPerToken && priceData?.unitLabel
+      ? ` / 1${priceData.unitLabel} Tokens`
+      : '';
+
+  const valueWithUnit = (value) =>
+    value ? (
+      <>
+        {value}
+        <span className='ml-1 text-[10px] font-normal text-gray-400'>
+          {unitSuffix}
+        </span>
+      </>
+    ) : (
+      missingText
+    );
+
+  if (record?.quota_type !== 0 || !priceData?.isPerToken) {
+    return [
+      { key: 'input', label: t('输入价格'), value: missingText },
+      { key: 'completion', label: t('补全价格'), value: missingText },
+      { key: 'cache', label: t('缓存读取价格'), value: missingText },
+      { key: 'create-cache', label: t('缓存创建价格'), value: missingText },
+    ];
+  }
+
+  return [
+    {
+      key: 'input',
+      label: t('输入价格'),
+      value: hasConfiguredNumber(record.model_ratio)
+        ? valueWithUnit(priceData.inputPrice)
+        : missingText,
+    },
+    {
+      key: 'completion',
+      label: t('补全价格'),
+      value: hasConfiguredNumber(record.completion_ratio)
+        ? valueWithUnit(priceData.completionPrice)
+        : missingText,
+    },
+    {
+      key: 'cache',
+      label: t('缓存读取价格'),
+      value: hasConfiguredNumber(record.cache_ratio)
+        ? valueWithUnit(priceData.cachePrice)
+        : missingText,
+    },
+    {
+      key: 'create-cache',
+      label: t('缓存创建价格'),
+      value: hasConfiguredNumber(record.create_cache_ratio)
+        ? valueWithUnit(priceData.createCachePrice)
+        : missingText,
+    },
+  ];
+};
+
 const PricingCardView = ({
   filteredModels,
   loading,
@@ -249,6 +315,20 @@ const PricingCardView = ({
             currency,
             quotaDisplayType: siteDisplayType,
           });
+          const marketPriceData = calculateModelPrice({
+            record: model,
+            selectedGroup,
+            groupRatio,
+            tokenUnit,
+            displayPrice,
+            currency,
+            quotaDisplayType: 'USD',
+          });
+          const marketPriceRows = getMarketPriceRows(
+            model,
+            marketPriceData,
+            t,
+          );
 
           return (
             <Card
@@ -312,6 +392,27 @@ const PricingCardView = ({
                 <div className='mt-auto'>
                   {/* 标签区域 */}
                   {renderTags(model)}
+
+                  <div className='mt-3 rounded-xl border border-gray-100 bg-gray-50/70 p-3'>
+                    <div className='mb-2 text-xs font-medium text-gray-700'>
+                      {t('真实价格')}
+                    </div>
+                    <div className='grid grid-cols-2 gap-2'>
+                      {marketPriceRows.map((item) => (
+                        <div
+                          key={item.key}
+                          className='min-w-0 rounded-lg bg-white/80 px-2 py-1.5'
+                        >
+                          <div className='truncate text-[11px] text-gray-500'>
+                            {item.label}
+                          </div>
+                          <div className='truncate text-xs font-semibold text-gray-900'>
+                            {item.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* 倍率信息（可选） */}
                   {showRatio && (
